@@ -243,6 +243,8 @@ dependencies = [
 [[package]]
 name = "cs2-gsi"
 version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "25742ceb0961bc5fb4fb80d355387c25e91592f68ac6b73793b09c0b8403db01"
 dependencies = [
  "bytes",
  "http-body-util",

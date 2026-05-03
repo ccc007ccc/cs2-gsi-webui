@@ -1,0 +1,107 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release (e.g. v0.1.0)"
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  build:
+    name: build (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            archive: zip
+            ext: .exe
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            archive: tar.gz
+            ext: ""
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            archive: tar.gz
+            ext: ""
+          - target: x86_64-apple-darwin
+            os: macos-13
+            archive: tar.gz
+            ext: ""
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Build release binary
+        run: cargo build --release --locked --target ${{ matrix.target }}
+
+      - name: Stage artifact (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: bash
+        run: |
+          STAGE="cs2-gsi-webui-${GITHUB_REF_NAME}-${{ matrix.target }}"
+          mkdir -p "$STAGE"
+          cp "target/${{ matrix.target }}/release/cs2-gsi-webui${{ matrix.ext }}" "$STAGE/"
+          cp README.md README.zh-CN.md LICENSE-MIT LICENSE-APACHE CHANGELOG.md "$STAGE/"
+          7z a "${STAGE}.zip" "$STAGE"
+          echo "ASSET=${STAGE}.zip" >> $GITHUB_ENV
+
+      - name: Stage artifact (Unix)
+        if: matrix.os != 'windows-latest'
+        shell: bash
+        run: |
+          STAGE="cs2-gsi-webui-${GITHUB_REF_NAME}-${{ matrix.target }}"
+          mkdir -p "$STAGE"
+          cp "target/${{ matrix.target }}/release/cs2-gsi-webui${{ matrix.ext }}" "$STAGE/"
+          cp README.md README.zh-CN.md LICENSE-MIT LICENSE-APACHE CHANGELOG.md "$STAGE/"
+          tar -czf "${STAGE}.tar.gz" "$STAGE"
+          echo "ASSET=${STAGE}.tar.gz" >> $GITHUB_ENV
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: ${{ env.ASSET }}
+          fail_on_unmatched_files: true
+          generate_release_notes: false
+
+  checksum:
+    name: checksums
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: robinraju/release-downloader@v1
+        with:
+          tag: ${{ github.ref_name }}
+          fileName: "*"
+          out-file-path: dist
+      - name: Generate SHA256SUMS
+        run: |
+          cd dist
+          sha256sum cs2-gsi-webui-* > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: dist/SHA256SUMS.txt

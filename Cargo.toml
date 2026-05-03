@@ -14,8 +14,7 @@ categories = ["games", "web-programming::websocket", "command-line-utilities"]
 authors = ["ccc007ccc"]
 
 [dependencies]
-# path 优先（同源开发体验），缺失时回落 crates.io 上的版本
-cs2-gsi = { version = "0.1", path = "../cs2-gsi" }
+cs2-gsi = "0.1"
 
 tokio = { version = "1.41", features = ["rt-multi-thread", "macros", "sync", "signal", "time"] }
 axum = { version = "0.7", features = ["ws"] }
