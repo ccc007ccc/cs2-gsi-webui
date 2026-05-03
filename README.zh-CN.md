@@ -36,12 +36,11 @@
 需要 Rust 1.86+ 与已通过 Steam 安装的 CS2。
 
 ```bash
-# 把上游 cs2-gsi 与本仓库 clone 到同级目录（用 path 引用）
-git clone https://github.com/ccc007ccc/cs2-gsi.git
 git clone https://github.com/ccc007ccc/cs2-gsi-webui.git
 cd cs2-gsi-webui
 
 # 默认端口：GSI 57530 / Web 3000
+# cs2-gsi 会从 crates.io 自动拉取
 cargo run --release
 ```
 

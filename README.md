@@ -36,12 +36,11 @@ Plug it in, launch CS2, open `http://localhost:3000` — and watch the match liv
 Requires Rust 1.86+ and CS2 installed via Steam.
 
 ```bash
-# clone alongside cs2-gsi (the binary references it via path)
-git clone https://github.com/ccc007ccc/cs2-gsi.git
 git clone https://github.com/ccc007ccc/cs2-gsi-webui.git
 cd cs2-gsi-webui
 
 # default ports: GSI 57530 / Web 3000
+# cs2-gsi is fetched automatically from crates.io
 cargo run --release
 ```
 
