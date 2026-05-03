@@ -1,0 +1,39 @@
+[package]
+name = "cs2-gsi-webui"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.86"
+description = "Web UI dashboard for cs2-gsi — live killfeed, scoreboard, multi-mode match analysis"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/ccc007ccc/cs2-gsi-webui"
+homepage = "https://github.com/ccc007ccc/cs2-gsi-webui"
+documentation = "https://github.com/ccc007ccc/cs2-gsi-webui#readme"
+readme = "README.md"
+keywords = ["cs2", "gsi", "counter-strike", "esports", "dashboard"]
+categories = ["games", "web-programming::websocket", "command-line-utilities"]
+authors = ["ccc007ccc"]
+
+[dependencies]
+# path 优先（同源开发体验），缺失时回落 crates.io 上的版本
+cs2-gsi = { version = "0.1", path = "../cs2-gsi" }
+
+tokio = { version = "1.41", features = ["rt-multi-thread", "macros", "sync", "signal", "time"] }
+axum = { version = "0.7", features = ["ws"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["cors", "trace"] }
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+clap = { version = "4", features = ["derive"] }
+
+futures-util = "0.3"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = true

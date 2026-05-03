@@ -1,0 +1,662 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>CS2 GSI · Live Match</title>
+<style>
+  :root {
+    --bg: #0b0d12;
+    --bg-2: #11141b;
+    --bg-3: #1a1f2b;
+    --line: #2a3042;
+    --fg: #e6e9f0;
+    --fg-mute: #8a93a6;
+    --ct: #4aa7ff;
+    --ct-bg: rgba(74,167,255,.12);
+    --t: #ffb14a;
+    --t-bg: rgba(255,177,74,.12);
+    --hs: #ff5e5e;
+    --knife: #c084fc;
+    --grenade: #f59e0b;
+    --good: #6ee7a8;
+    --bad: #ff5e5e;
+    --warn: #fbbf24;
+    --shadow: 0 6px 18px rgba(0,0,0,.35);
+  }
+  * { box-sizing: border-box; }
+  html,body { margin:0; padding:0; background:var(--bg); color:var(--fg);
+    font-family: ui-sans-serif, system-ui, "Segoe UI", "PingFang SC",
+                 "Microsoft YaHei", Roboto, Helvetica, Arial, sans-serif; }
+  a { color: var(--ct); }
+  .layout { display:grid; grid-template-columns: 360px 1fr 360px;
+    gap:14px; padding:14px; min-height:100vh; }
+  @media (max-width: 1100px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+  .card { background: var(--bg-2); border: 1px solid var(--line);
+    border-radius: 10px; box-shadow: var(--shadow); overflow:hidden; }
+  .card h2 { margin:0; padding:10px 14px; font-size:13px; letter-spacing:.04em;
+    color:var(--fg-mute); text-transform: uppercase;
+    background: var(--bg-3); border-bottom: 1px solid var(--line); }
+
+  header.top { grid-column: 1/-1; display:flex; align-items:center;
+    justify-content: space-between; gap:14px; padding:10px 14px;
+    background: var(--bg-2); border:1px solid var(--line); border-radius:10px;
+    box-shadow: var(--shadow); }
+  .brand { display:flex; align-items:center; gap:10px; }
+  .brand .dot { width:10px; height:10px; border-radius:50%; background:var(--bad);
+    box-shadow: 0 0 0 4px rgba(255,94,94,.15); transition: all .2s; }
+  .brand .dot.on { background: var(--good); box-shadow: 0 0 0 4px rgba(110,231,168,.18); }
+  .brand b { font-size: 14px; letter-spacing:.04em; }
+  .meta { display:flex; gap:10px; flex-wrap:wrap; align-items:center; font-size:12px; color:var(--fg-mute); }
+  .badge { display:inline-flex; align-items:center; padding:3px 8px;
+    background: var(--bg-3); border:1px solid var(--line); border-radius:999px;
+    font-size:11px; color:var(--fg); }
+  .badge.mode { color: #fbbf24; border-color: #fbbf2455; }
+  .badge.view-self { color: var(--warn); border-color: #fbbf2455; }
+  .badge.view-spec { color: var(--good); border-color: #6ee7a833; }
+  .lang-switch { display:flex; gap:0; background: var(--bg-3); border:1px solid var(--line);
+    border-radius:6px; overflow:hidden; }
+  .lang-switch button { background:transparent; color:var(--fg-mute); border:0; cursor:pointer;
+    padding: 4px 10px; font-size: 11px; font-weight:600; transition: all .15s; }
+  .lang-switch button.active { background: var(--ct); color:#001a33; }
+  .lang-switch button:hover:not(.active) { color: var(--fg); }
+
+  .notice { grid-column: 1/-1; padding: 8px 14px; border-radius:8px;
+    background: rgba(251,191,36,.08); border: 1px solid rgba(251,191,36,.25);
+    color: var(--warn); font-size: 12px; line-height: 1.5; display:none; }
+  .notice.show { display:block; }
+  .notice b { color: #fde68a; }
+
+  .score { display:grid; grid-template-columns: 1fr auto 1fr; align-items:center;
+    gap:14px; padding:14px; }
+  .score .side { font-size: 36px; font-weight: 800; text-align:center;
+    padding: 16px 8px; border-radius:8px; }
+  .score .ct { background: var(--ct-bg); color: var(--ct); }
+  .score .t { background: var(--t-bg); color: var(--t); }
+  .score .vs { font-size:14px; color: var(--fg-mute); text-align:center; }
+  .score .vs .map { display:block; font-size:13px; color:var(--fg); margin-bottom:4px; }
+  .score .vs .round { font-size:11px; }
+
+  #feed { display:flex; flex-direction:column; gap:6px; padding: 10px;
+    max-height: calc(100vh - 60px); overflow-y:auto; }
+  .kill { display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+    padding: 8px 10px; border-radius:8px; background:var(--bg-3);
+    border-left: 3px solid var(--line); animation: slideIn .25s ease-out; }
+  @keyframes slideIn {
+    from { opacity:0; transform: translateX(8px); }
+    to   { opacity:1; transform: translateX(0); }
+  }
+  .kill.ct-kill { border-left-color: var(--ct); }
+  .kill.t-kill  { border-left-color: var(--t); }
+  .kill.self    { border-left-color: var(--good); background: rgba(110,231,168,.06); }
+  .kill.dead    { border-left-color: var(--bad); background: rgba(255,94,94,.06); }
+  .kill .name { font-weight:600; }
+  .kill .name.ct { color: var(--ct); }
+  .kill .name.t  { color: var(--t); }
+  .kill .name.spec { color: var(--fg-mute); }
+  .kill .arrow { color: var(--fg-mute); }
+  .kill .weapon { font-size: 11px; padding: 2px 6px; border-radius: 4px;
+    background: var(--bg); border:1px solid var(--line); color: var(--fg-mute); }
+  .kill .tag { font-size: 11px; padding: 2px 6px; border-radius: 999px; font-weight: 700; }
+  .kill .tag.hs { background: rgba(255,94,94,.15); color: var(--hs); border:1px solid rgba(255,94,94,.3); }
+  .kill .tag.knife { background: rgba(192,132,252,.15); color: var(--knife); border:1px solid rgba(192,132,252,.3); }
+  .kill .tag.grenade { background: rgba(245,158,11,.15); color: var(--grenade); border:1px solid rgba(245,158,11,.3); }
+  .kill .tag.you { background: rgba(110,231,168,.15); color: var(--good); border:1px solid rgba(110,231,168,.3); }
+  .kill .tag.died { background: rgba(255,94,94,.15); color: var(--bad); border:1px solid rgba(255,94,94,.3); }
+
+  .divider { display:flex; align-items:center; gap:8px;
+    padding: 4px 10px; color:var(--fg-mute); font-size:11px; }
+  .divider::before, .divider::after {
+    content:""; flex:1; height:1px; background: var(--line); }
+
+  table.players { width:100%; border-collapse: collapse; font-size: 12px; }
+  table.players th, table.players td { padding: 6px 8px; text-align:left; }
+  table.players thead { background: var(--bg-3); color: var(--fg-mute);
+    font-weight:500; font-size: 10px; text-transform: uppercase; letter-spacing:.05em; }
+  table.players tbody tr { border-top: 1px solid var(--line); }
+  table.players tbody tr.dead { opacity:.5; }
+  table.players tbody tr.local { background: rgba(110,231,168,.05); }
+  table.players td.name { font-weight:600; }
+  table.players td.name.ct { color: var(--ct); }
+  table.players td.name.t  { color: var(--t); }
+  table.players td.right { text-align:right; }
+  table.players td.hp { font-variant-numeric: tabular-nums; }
+  .you-marker { display:inline-block; padding:1px 5px; margin-left:4px;
+    font-size:9px; border-radius:3px; background:var(--good); color:#0b3d23; font-weight:700; }
+  .hp-bar { display:inline-block; width: 36px; height: 6px; background: #2a3042;
+    border-radius:3px; overflow:hidden; vertical-align: middle; margin-right:6px; }
+  .hp-bar > span { display:block; height:100%; background: var(--good);
+    transition: width .2s, background .2s; }
+  .hp-bar.low > span { background: var(--bad); }
+
+  .stats { display:grid; grid-template-columns: repeat(2, 1fr); gap:8px; padding: 10px 14px; }
+  .stat { padding: 8px 10px; background: var(--bg-3); border-radius:8px;
+    border: 1px solid var(--line); }
+  .stat .k { font-size: 10px; color: var(--fg-mute); text-transform: uppercase;
+    letter-spacing:.05em; }
+  .stat .v { font-size: 18px; font-weight: 700; margin-top: 2px; }
+
+  #timeline { display:flex; flex-direction:column; gap:4px; max-height: 220px; overflow-y:auto; padding:8px 14px; }
+  .tl { font-size: 11px; color: var(--fg-mute); padding:4px 6px;
+    border-left: 2px solid var(--line); padding-left:8px; }
+  .tl .t-time { color: #6b7280; margin-right: 6px; }
+  .tl.bomb { border-left-color: var(--t); color: var(--t); }
+  .tl.round { border-left-color: var(--ct); color: var(--fg); }
+  .tl.match { border-left-color: var(--good); color: var(--good); }
+  .tl.dmg { border-left-color: var(--bad); color: var(--bad); }
+
+  details.diag { grid-column: 1/-1; background: var(--bg-2); border:1px solid var(--line);
+    border-radius:10px; padding: 6px 14px; box-shadow: var(--shadow); }
+  details.diag summary { cursor:pointer; font-size: 12px; color: var(--fg-mute);
+    padding: 6px 0; user-select:none; }
+  details.diag summary:hover { color: var(--fg); }
+  pre#raw { margin: 8px 0 0; padding: 10px; background: var(--bg);
+    border: 1px solid var(--line); border-radius: 6px; font-size: 11px;
+    color: var(--fg-mute); overflow:auto; max-height: 240px;
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace; }
+
+  ::-webkit-scrollbar { width:8px; height:8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #2a3042; border-radius:4px; }
+
+  .empty { text-align:center; color: var(--fg-mute); padding: 20px; font-size:12px; line-height:1.6; }
+</style>
+</head>
+<body>
+  <div class="layout">
+    <header class="top">
+      <div class="brand">
+        <span class="dot" id="conn"></span>
+        <b data-i18n="brand">CS2 GSI · Live Match</b>
+      </div>
+      <div class="meta">
+        <span class="badge mode" id="mode" data-i18n="not_connected">Not connected</span>
+        <span class="badge" id="map">—</span>
+        <span class="badge" id="phase">—</span>
+        <span class="badge" id="round"></span>
+        <span class="badge view-self" id="view"></span>
+        <div class="lang-switch">
+          <button data-lang="en">EN</button>
+          <button data-lang="zh">中</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="notice" id="notice">
+      <b data-i18n="notice_title">Local view</b>:
+      <span data-i18n="notice_body">you are playing matchmaking / casual. Valve only pushes data for the local player. To see full match data (all HP, kill sources, all grenades), use spectator / GOTV / replay. This is not a bug.</span>
+    </div>
+
+    <section class="card">
+      <h2 data-i18n="scoreboard">Scoreboard</h2>
+      <div class="score">
+        <div class="side ct" id="score-ct">0</div>
+        <div class="vs">
+          <span class="map" id="map-name">—</span>
+          <span class="round" id="round-num"></span>
+        </div>
+        <div class="side t" id="score-t">0</div>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="k" data-i18n="total_kills">Total kills</div><div class="v" id="s-kills">0</div></div>
+        <div class="stat"><div class="k" data-i18n="headshots">Headshots</div><div class="v" id="s-hs">0</div></div>
+        <div class="stat"><div class="k" data-i18n="grenade_kills">Grenade kills</div><div class="v" id="s-grenade">0</div></div>
+        <div class="stat"><div class="k" data-i18n="knife_kills">Knife kills</div><div class="v" id="s-knife">0</div></div>
+      </div>
+
+      <h2 style="border-top:1px solid var(--line)" data-i18n="timeline">Timeline</h2>
+      <div id="timeline"><div class="empty" data-i18n="no_events">No events yet</div></div>
+    </section>
+
+    <section class="card">
+      <h2>
+        <span data-i18n="killfeed">Killfeed</span>
+        <span style="float:right;font-weight:400;text-transform:none;color:var(--fg-mute)" data-i18n="killfeed_hint">HS ☠ · Nade 💥 · Knife 🔪 · You ⭐</span>
+      </h2>
+      <div id="feed"><div class="empty" data-i18n="waiting_cs2">Waiting for CS2…<br/>Make sure CS2 is running and you are in a match.</div></div>
+    </section>
+
+    <section class="card">
+      <h2 data-i18n="players">Players</h2>
+      <div id="players"><div class="empty" data-i18n="no_players">No player data yet</div></div>
+    </section>
+
+    <details class="diag">
+      <summary data-i18n="diag_summary">🛠 Diagnostics / raw GSI fields (click to expand)</summary>
+      <div style="font-size:11px; color:var(--fg-mute); margin: 6px 0;" data-i18n="diag_hint">
+        If the panels above stay empty, check this section to verify CS2 is actually pushing data. Start the binary with <code>--raw</code> to populate this view.
+      </div>
+      <pre id="raw" data-i18n="diag_empty">--raw not enabled or no payload received yet</pre>
+    </details>
+  </div>
+
+<script>
+(function(){
+  // ---------- i18n ----------
+  const I18N = {
+    en: {
+      brand: 'CS2 GSI · Live Match',
+      not_connected: 'Not connected',
+      no_match: 'Not in a match',
+      round_n: r => 'Round ' + r,
+      round_short: r => 'Round ' + r,
+      view_self: 'Local view (limited)',
+      view_spec: 'Spectator view (full)',
+      notice_title: 'Local view',
+      notice_body: 'you are playing matchmaking / casual. Valve only pushes data for the local player. To see full match data (all HP, kill sources, all grenades), use spectator / GOTV / replay. This is not a bug.',
+      scoreboard: 'Scoreboard',
+      total_kills: 'Total kills',
+      headshots: 'Headshots',
+      grenade_kills: 'Grenade kills',
+      knife_kills: 'Knife kills',
+      timeline: 'Timeline',
+      no_events: 'No events yet',
+      killfeed: 'Killfeed',
+      killfeed_hint: 'HS ☠ · Nade 💥 · Knife 🔪 · You ⭐',
+      waiting_cs2: 'Waiting for CS2…<br/>Make sure CS2 is running and you are in a match.',
+      players: 'Players',
+      no_players: 'No player data yet',
+      no_players_self: 'Solo view: only your own data is available.<br/>Spectator / GOTV gives the full roster.',
+      diag_summary: '🛠 Diagnostics / raw GSI fields (click to expand)',
+      diag_hint: 'If the panels above stay empty, check this section to verify CS2 is actually pushing data. Start the binary with <code>--raw</code> to populate this view.',
+      diag_empty: '--raw not enabled or no payload received yet',
+      tag_you: '⭐ YOU',
+      tag_hs: '☠ HEADSHOT',
+      tag_knife: '🔪 KNIFE',
+      tag_nade: '💥 NADE',
+      tag_died: '💀 You died',
+      enemy: 'enemy',
+      hp: 'HP',
+      new_round: '─── New round ───',
+      round_start: 'Round started',
+      round_freeze: 'Freeze time',
+      round_over: 'Round ended',
+      round_winner_ct: 'Round ended · CT win',
+      round_winner_t: 'Round ended · T win',
+      round_winner_none: 'Round ended · draw',
+      score_change: (team, prev, n) => team + ' score ' + prev + ' → ' + n,
+      damage: (prev, n) => 'Damage ' + prev + ' → ' + n + ' HP',
+      died: (name, prev) => name + ' died (HP ' + prev + ' → 0)',
+      bomb_planting: 'Bomb is being planted',
+      bomb_planted: 'Bomb planted',
+      bomb_defusing: 'Defusing',
+      bomb_defused: 'Bomb defused',
+      bomb_exploded: 'Bomb exploded',
+      bomb_dropped: 'Bomb dropped',
+      bomb_pickedup: 'Bomb picked up',
+      match_started: 'Match started 🚀',
+      match_ended: 'Match ended 🏁',
+    },
+    zh: {
+      brand: 'CS2 GSI · 实时对局',
+      not_connected: '未连接',
+      no_match: '未在对局',
+      round_n: r => '第 ' + r + ' 回合',
+      round_short: r => '回合 ' + r,
+      view_self: '本机视角（受限）',
+      view_spec: '观战视角（完整）',
+      notice_title: '本机视角',
+      notice_body: '：你正在玩天梯 / casual，Valve 只推送本地玩家自己的数据。若要看完整对局（全员血量、击杀来源、所有道具），请使用观战 / GOTV / 录像。这不是程序问题。',
+      scoreboard: '比分板',
+      total_kills: '总击杀',
+      headshots: '爆头',
+      grenade_kills: '道具杀',
+      knife_kills: '刀杀',
+      timeline: '时间线',
+      no_events: '暂无事件',
+      killfeed: '击杀播报',
+      killfeed_hint: '爆头 ☠ · 道具 💥 · 刀 🔪 · 你 ⭐',
+      waiting_cs2: '等待 CS2 推送中…<br/>请确保 CS2 已启动并加入对局',
+      players: '玩家列表',
+      no_players: '未收到玩家数据',
+      no_players_self: '天梯模式仅显示你自己<br/>需观战 / GOTV 才有完整名单',
+      diag_summary: '🛠 诊断 / 原始 GSI 字段（点击展开）',
+      diag_hint: '若上方区域无数据，看这里确认 CS2 是否在推送。启动时加 <code>--raw</code> 才会有内容。',
+      diag_empty: '未启用 --raw 或暂无数据',
+      tag_you: '⭐ 你',
+      tag_hs: '☠ 爆头',
+      tag_knife: '🔪 刀杀',
+      tag_nade: '💥 道具',
+      tag_died: '💀 你阵亡',
+      enemy: '敌人',
+      hp: 'HP',
+      new_round: '─── 新回合 ───',
+      round_start: '回合开始',
+      round_freeze: '准备阶段（freezetime）',
+      round_over: '回合结束',
+      round_winner_ct: '回合结束 · CT 胜',
+      round_winner_t: '回合结束 · T 胜',
+      round_winner_none: '回合结束 · 平局',
+      score_change: (team, prev, n) => team + ' 得分 ' + prev + ' → ' + n,
+      damage: (prev, n) => '受伤 ' + prev + ' → ' + n + ' HP',
+      died: (name, prev) => name + ' 阵亡 (HP ' + prev + ' → 0)',
+      bomb_planting: '正在安放炸弹',
+      bomb_planted: '炸弹已安放',
+      bomb_defusing: '正在拆除',
+      bomb_defused: '炸弹已拆除',
+      bomb_exploded: '炸弹爆炸',
+      bomb_dropped: '炸弹掉落',
+      bomb_pickedup: '炸弹被拾起',
+      match_started: '比赛开始 🚀',
+      match_ended: '比赛结束 🏁',
+    },
+  };
+
+  function detectLang() {
+    const saved = localStorage.getItem('cs2gsi_lang');
+    if (saved && I18N[saved]) return saved;
+    const nav = (navigator.language || 'en').toLowerCase();
+    return nav.startsWith('zh') ? 'zh' : 'en';
+  }
+
+  let lang = detectLang();
+  const t = (k, ...args) => {
+    const v = I18N[lang][k];
+    if (typeof v === 'function') return v(...args);
+    return v ?? k;
+  };
+
+  function applyI18n() {
+    document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+    document.title = t('brand');
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      const val = I18N[lang][key];
+      if (typeof val === 'string') el.innerHTML = val;
+    });
+    document.querySelectorAll('.lang-switch button').forEach(b => {
+      b.classList.toggle('active', b.dataset.lang === lang);
+    });
+    // 重渲所有动态区域
+    renderTop();
+    renderStats();
+    renderFeed();
+    renderTimeline();
+    renderPlayers();
+  }
+
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.lang-switch button');
+    if (btn) {
+      lang = btn.dataset.lang;
+      localStorage.setItem('cs2gsi_lang', lang);
+      applyI18n();
+    }
+  });
+
+  // ---------- 状态 ----------
+  const state = {
+    kills: 0, hs: 0, grenade: 0, knife: 0,
+    feedItems: [],
+    timeline: [],
+    players: [],
+    map: '', mode: '', phase: '', round: 0,
+    score_ct: 0, score_t: 0,
+    spectator_view: false,
+    local_name: '',
+  };
+
+  const MAX_FEED = 80;
+  const MAX_TL = 50;
+
+  const $ = (id) => document.getElementById(id);
+  const fmtTime = (ts) => {
+    const d = new Date(ts*1000);
+    return d.toTimeString().slice(0,8);
+  };
+  const teamCls = (team) => team === 'CT' ? 'ct' : team === 'T' ? 't' : 'spec';
+
+  const WEAPON_PRETTY = {
+    'weapon_ak47':'AK-47', 'weapon_m4a4':'M4A4', 'weapon_m4a1_silencer':'M4A1-S',
+    'weapon_awp':'AWP', 'weapon_deagle':'Desert Eagle', 'weapon_glock':'Glock-18',
+    'weapon_usp_silencer':'USP-S', 'weapon_hkp2000':'P2000', 'weapon_p250':'P250',
+    'weapon_fiveseven':'Five-SeveN', 'weapon_tec9':'Tec-9', 'weapon_cz75a':'CZ75-Auto',
+    'weapon_revolver':'R8 Revolver', 'weapon_elite':'Dual Berettas',
+    'weapon_galilar':'Galil AR', 'weapon_famas':'FAMAS', 'weapon_aug':'AUG',
+    'weapon_sg556':'SG 553', 'weapon_ssg08':'SSG 08', 'weapon_scar20':'SCAR-20',
+    'weapon_g3sg1':'G3SG1', 'weapon_nova':'Nova', 'weapon_xm1014':'XM1014',
+    'weapon_mag7':'MAG-7', 'weapon_sawedoff':'Sawed-Off',
+    'weapon_mp9':'MP9', 'weapon_mac10':'MAC-10', 'weapon_mp7':'MP7',
+    'weapon_mp5sd':'MP5-SD', 'weapon_ump45':'UMP-45', 'weapon_p90':'P90',
+    'weapon_bizon':'PP-Bizon', 'weapon_m249':'M249', 'weapon_negev':'Negev',
+    'weapon_taser':'Zeus x27',
+    'weapon_hegrenade':'HE Grenade', 'weapon_inferno':'Molotov',
+    'weapon_molotov':'Molotov', 'weapon_incgrenade':'Incendiary',
+    'weapon_decoy':'Decoy', 'weapon_flashbang':'Flashbang', 'weapon_smokegrenade':'Smoke',
+    'weapon_knife':'Knife', 'weapon_knife_t':'Knife',
+  };
+  const prettyWeapon = (w) => WEAPON_PRETTY[w] || (w || '').replace(/^weapon_/, '');
+
+  function renderTop() {
+    $('mode').textContent = state.mode ? state.mode.toUpperCase() : t('no_match');
+    $('map').textContent = state.map || '—';
+    $('phase').textContent = state.phase || '—';
+    $('round').textContent = t('round_n', state.round || 0);
+    $('map-name').textContent = state.map || '—';
+    $('round-num').textContent = t('round_short', state.round || 0);
+    $('score-ct').textContent = state.score_ct;
+    $('score-t').textContent = state.score_t;
+
+    const view = $('view');
+    const notice = $('notice');
+    if (state.spectator_view) {
+      view.textContent = t('view_spec');
+      view.classList.remove('view-self');
+      view.classList.add('view-spec');
+      notice.classList.remove('show');
+    } else {
+      view.textContent = t('view_self');
+      view.classList.add('view-self');
+      view.classList.remove('view-spec');
+      if (state.map) notice.classList.add('show');
+      else notice.classList.remove('show');
+    }
+  }
+
+  function renderStats() {
+    $('s-kills').textContent = state.kills;
+    $('s-hs').textContent = state.hs;
+    $('s-grenade').textContent = state.grenade;
+    $('s-knife').textContent = state.knife;
+  }
+
+  function pushFeed(item) {
+    state.feedItems.push(item);
+    if (state.feedItems.length > MAX_FEED) state.feedItems.shift();
+    renderFeed();
+  }
+
+  function renderFeed() {
+    const feed = $('feed');
+    if (state.feedItems.length === 0) {
+      feed.innerHTML = '<div class="empty">' + t('waiting_cs2') + '</div>';
+      return;
+    }
+    feed.innerHTML = state.feedItems.slice().reverse().map(it => {
+      if (it.kind === 'divider') {
+        return '<div class="divider">' + escapeHtml(t('new_round')) + '</div>';
+      }
+      if (it.kind === 'died') {
+        return `<div class="kill dead">
+          <span class="tag died">${t('tag_died')}</span>
+          <span style="color:var(--fg-mute)">${t('hp')} ${it.prevHp} → 0</span>
+        </div>`;
+      }
+      const k = it.data;
+      const isSelf = k.source === 'self';
+      const tags = [];
+      if (isSelf) tags.push('<span class="tag you">' + t('tag_you') + '</span>');
+      if (k.knife) tags.push('<span class="tag knife">' + t('tag_knife') + '</span>');
+      if (k.grenade) tags.push('<span class="tag grenade">' + t('tag_nade') + '</span>');
+      if (k.headshot) tags.push('<span class="tag hs">' + t('tag_hs') + '</span>');
+      const cls = (isSelf ? 'self ' : '') +
+        (k.killer_team === 'CT' ? 'ct-kill' : (k.killer_team === 'T' ? 't-kill' : ''));
+      const victimHtml = isSelf
+        ? `<span class="name spec">${t('enemy')}</span>`
+        : `<span class="name ${teamCls(k.victim_team)}">${escapeHtml(k.victim)}</span>`;
+      return `
+        <div class="kill ${cls}">
+          <span class="name ${teamCls(k.killer_team)}">${escapeHtml(k.killer)}</span>
+          <span class="weapon">${escapeHtml(prettyWeapon(k.weapon))}</span>
+          <span class="arrow">→</span>
+          ${victimHtml}
+          ${tags.join(' ')}
+        </div>`;
+    }).join('');
+  }
+
+  function pushTimeline(cls, key, ...args) {
+    state.timeline.push({ cls, key, args, ts: Math.floor(Date.now()/1000) });
+    if (state.timeline.length > MAX_TL) state.timeline.shift();
+    renderTimeline();
+  }
+
+  function renderTimeline() {
+    const tl = $('timeline');
+    if (state.timeline.length === 0) {
+      tl.innerHTML = '<div class="empty">' + t('no_events') + '</div>';
+      return;
+    }
+    tl.innerHTML = state.timeline.slice().reverse().map(it =>
+      `<div class="tl ${it.cls}"><span class="t-time">${fmtTime(it.ts)}</span>${escapeHtml(t(it.key, ...(it.args || [])))}</div>`
+    ).join('');
+  }
+
+  function renderPlayers() {
+    const root = $('players');
+    if (!state.players || state.players.length === 0) {
+      const key = state.spectator_view ? 'no_players' : 'no_players_self';
+      root.innerHTML = '<div class="empty">' + t(key) + '</div>';
+      return;
+    }
+    const rows = state.players.map(p => {
+      const hpPct = Math.max(0, Math.min(100, p.health));
+      const hpClass = hpPct < 30 ? 'low' : '';
+      const localTag = p.is_local ? '<span class="you-marker">' + (lang === 'zh' ? '你' : 'YOU') + '</span>' : '';
+      return `<tr class="${p.is_alive ? '' : 'dead'} ${p.is_local ? 'local' : ''}">
+        <td class="name ${teamCls(p.team)}">${escapeHtml(p.name)}${localTag}</td>
+        <td class="hp"><span class="hp-bar ${hpClass}"><span style="width:${hpPct}%"></span></span>${p.health}</td>
+        <td class="right">${p.kills}</td>
+        <td class="right">${p.assists}</td>
+        <td class="right">${p.deaths}</td>
+        <td class="right">$${p.money}</td>
+      </tr>`;
+    }).join('');
+    root.innerHTML = `<table class="players">
+      <thead><tr><th>${t('players')}</th><th>${t('hp')}</th><th class="right">K</th>
+        <th class="right">A</th><th class="right">D</th><th class="right">$</th></tr></thead>
+      <tbody>${rows}</tbody></table>`;
+  }
+
+  function escapeHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c =>
+      ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+  }
+
+  function handleEvent(evt) {
+    switch (evt.type) {
+      case 'killfeed': {
+        state.kills += 1;
+        if (evt.headshot) state.hs += 1;
+        if (evt.grenade) state.grenade += 1;
+        if (evt.knife) state.knife += 1;
+        if (evt.source === 'self') state.local_name = evt.killer;
+        pushFeed({ kind:'kill', data: evt });
+        renderStats();
+        break;
+      }
+      case 'self_died': {
+        pushFeed({ kind:'died', prevHp: evt.previous_health });
+        pushTimeline('dmg', 'died', evt.player, evt.previous_health);
+        break;
+      }
+      case 'self_damage': {
+        pushTimeline('dmg', 'damage', evt.previous, evt.new);
+        break;
+      }
+      case 'snapshot': {
+        state.map = evt.map;
+        state.mode = evt.mode;
+        state.phase = evt.phase;
+        state.round = evt.round;
+        state.score_ct = evt.score_ct;
+        state.score_t = evt.score_t;
+        state.players = evt.players;
+        state.spectator_view = evt.spectator_view;
+        renderTop();
+        renderPlayers();
+        break;
+      }
+      case 'round': {
+        if (evt.phase === 'live') {
+          pushTimeline('round', 'round_start');
+          pushFeed({ kind:'divider' });
+        } else if (evt.phase === 'freezetime') {
+          pushTimeline('round', 'round_freeze');
+        } else if (evt.phase === 'over') {
+          pushTimeline('round', 'round_over');
+        }
+        break;
+      }
+      case 'round_end': {
+        const key = evt.winner === 'ct' ? 'round_winner_ct'
+                  : evt.winner === 't' ? 'round_winner_t'
+                  : 'round_winner_none';
+        pushTimeline('round', key);
+        break;
+      }
+      case 'bomb': {
+        const map = { planting:'bomb_planting', planted:'bomb_planted',
+          defusing:'bomb_defusing', defused:'bomb_defused', exploded:'bomb_exploded',
+          dropped:'bomb_dropped', pickedup:'bomb_pickedup' };
+        if (map[evt.state]) pushTimeline('bomb', map[evt.state]);
+        break;
+      }
+      case 'score': {
+        pushTimeline('round', 'score_change', evt.team, evt.previous, evt.new);
+        break;
+      }
+      case 'match': {
+        pushTimeline('match', evt.kind === 'started' ? 'match_started' : 'match_ended');
+        break;
+      }
+      case 'raw': {
+        $('raw').textContent = JSON.stringify(evt.payload, null, 2);
+        break;
+      }
+      case 'system': break;
+    }
+  }
+
+  // ---------- WebSocket ----------
+  let ws = null;
+  let retry = 0;
+
+  function connect() {
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    const url = `${proto}://${location.host}/ws`;
+    ws = new WebSocket(url);
+    ws.onopen = () => {
+      retry = 0;
+      $('conn').classList.add('on');
+    };
+    ws.onclose = () => {
+      $('conn').classList.remove('on');
+      retry = Math.min(retry+1, 5);
+      setTimeout(connect, 500 * retry);
+    };
+    ws.onerror = () => { try { ws.close(); } catch(e){} };
+    ws.onmessage = (e) => {
+      try { handleEvent(JSON.parse(e.data)); }
+      catch (err) { console.warn('bad ws message', err, e.data); }
+    };
+  }
+
+  applyI18n();
+  connect();
+})();
+</script>
+</body>
+</html>
